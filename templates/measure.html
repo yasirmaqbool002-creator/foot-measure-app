@@ -63,18 +63,15 @@
             </div>
             <div class="loader" id="loader"><div class="spinner"></div><p>AI analyzing...</p></div>
             <div class="results" id="results">
-                <!-- Foot Map -->
                 <div class="result-card">
                     <h3>👣 Foot Map</h3>
                     <div id="footMap"></div>
                 </div>
-                <!-- Size Comparison -->
                 <div class="result-card">
                     <h3>📊 Size Comparison</h3>
                     <div id="percentileInfo" class="info-box"></div>
                     <canvas id="percentileChart" height="150"></canvas>
                 </div>
-                <!-- Shoe Sizes -->
                 <div class="result-card">
                     <h3>👟 Your Shoe Sizes</h3>
                     <div class="size-grid">
@@ -83,13 +80,10 @@
                         <div class="size-card"><div>🇪🇺 EU</div><div class="size-value" id="euSize">-</div></div>
                     </div>
                 </div>
-                <!-- Product Recommendations -->
                 <div class="result-card">
                     <h3>🛍️ Recommended For You</h3>
                     <div class="product-grid" id="productGrid"></div>
-                    <div class="info-box" style="font-size:12px">💰 We earn commission from qualifying purchases</div>
                 </div>
-                <!-- QR Code -->
                 <div class="result-card">
                     <h3>📱 QR Code for Store</h3>
                     <div class="qr-container">
@@ -97,16 +91,14 @@
                         <p>Scan at shoe store to show your size</p>
                     </div>
                 </div>
-                <!-- Save Profile -->
                 <div class="result-card">
                     <h3>💾 Save to Profile</h3>
                     <input type="text" id="profileName" placeholder="Name (e.g., Son, Daughter, Mom)" style="width:100%; padding:10px; margin:10px 0; border-radius:10px; border:1px solid #ddd;">
                     <button onclick="saveToProfile()">💾 Save This Measurement</button>
                     <div id="familyList" style="margin-top:15px"></div>
                 </div>
-                <!-- Download -->
-                <button class="btn-reset" onclick="downloadPDF()">📄 Download PDF Report</button>
-                <button class="btn-reset" onclick="resetApp()" style="margin-top:10px">📷 Measure Again</button>
+                <button class="btn-reset" onclick="downloadPDF()">📄 Download PDF</button>
+                <button class="btn-reset" onclick="resetApp()" style="margin-top:10px">🔄 Recapture</button>
             </div>
         </div>
     </div>
@@ -117,6 +109,18 @@
         let captureInterval = null;
         let isAutoCaptureEnabled = true;
         let currentData = null;
+
+        // Reset everything when page loads fresh
+        window.addEventListener('load', function() {
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('borderGuide').classList.remove('perfect');
+            document.getElementById('distanceFill').style.width = '0%';
+            sessionStorage.clear();
+            isAutoCaptureEnabled = true;
+            document.getElementById('instruction').innerHTML = '📱 Place foot inside outline';
+            document.getElementById('instruction').style.background = 'rgba(0,0,0,0.7)';
+        });
 
         async function startCamera() {
             try {
@@ -154,6 +158,12 @@
                         document.getElementById('instruction').innerHTML = '✅ Perfect! Capturing...';
                         isAutoCaptureEnabled = false;
                         setTimeout(() => autoCapture(), 500);
+                    } else if (ratio < 0.7) {
+                        document.getElementById('borderGuide').classList.remove('perfect');
+                        document.getElementById('instruction').innerHTML = '📱 Move CLOSER';
+                    } else {
+                        document.getElementById('borderGuide').classList.remove('perfect');
+                        document.getElementById('instruction').innerHTML = '📱 Move FARTHER';
                     }
                 }
             });
@@ -184,13 +194,10 @@
             document.getElementById('ukSize').innerHTML = data.sizes.UK;
             document.getElementById('euSize').innerHTML = data.sizes.EU;
             
-            // Foot map
             document.getElementById('footMap').innerHTML = `<svg width="200" height="300" viewBox="0 0 200 300"><path d="M100,20 C130,20 160,80 160,150 C160,220 140,270 100,280 C60,270 40,220 40,150 C40,80 70,20 100,20Z" fill="#f5e6d3" stroke="#764ba2" stroke-width="2"/><line x1="40" y1="150" x2="160" y2="150" stroke="#ff4444" stroke-width="2" stroke-dasharray="5,5"/><line x1="100" y1="20" x2="100" y2="280" stroke="#4CAF50" stroke-width="2" stroke-dasharray="5,5"/><text x="165" y="150" fill="#ff4444" font-size="12">Width: ${data.foot_width_cm}cm</text><text x="80" y="15" fill="#4CAF50" font-size="12">Length: ${data.foot_cm}cm</text><circle cx="70" cy="220" r="8" fill="#ff9800" opacity="0.5"/><circle cx="130" cy="220" r="8" fill="#ff9800" opacity="0.5"/></svg>`;
             
-            // Percentile
-            document.getElementById('percentileInfo').innerHTML = `Your foot is in the <strong>${data.percentile}th percentile</strong> for your age group.<br>This means ${data.percentile}% of people your age have smaller feet.`;
+            document.getElementById('percentileInfo').innerHTML = `Your foot is in the <strong>${data.percentile}th percentile</strong> for your age group.`;
             
-            // Draw percentile chart
             const ctx = document.getElementById('percentileChart').getContext('2d');
             new Chart(ctx, {
                 type: 'bar',
@@ -198,21 +205,16 @@
                 options: { responsive: true, maintainAspectRatio: true }
             });
             
-            // Product recommendations
-            const category = '{{ age_category }}';
-            const products = getProductsForCategory(category);
-            document.getElementById('productGrid').innerHTML = products.map(p => `<div class="product-card" onclick="window.open('${p.link}', '_blank')"><div>${p.image} ${p.name}</div><div>${p.price}</div><div style="font-size:11px">${p.type}</div></div>`).join('');
+            const products = [
+                { name: 'Popular Walking Shoes', price: '$49.99', image: '👟', type: 'Best Seller' },
+                { name: 'Comfort Fit Sneakers', price: '$59.99', image: '👟', type: 'Top Rated' },
+                { name: 'Sport Running Shoes', price: '$79.99', image: '🏃', type: 'New Arrival' }
+            ];
+            document.getElementById('productGrid').innerHTML = products.map(p => `<div class="product-card" onclick="window.open('#', '_blank')"><div>${p.image} ${p.name}</div><div>${p.price}</div><div style="font-size:11px">${p.type}</div></div>`).join('');
             
-            // QR Code
             fetch('/qr-code').then(res => res.json()).then(qr => { document.getElementById('qrCode').innerHTML = qr.qr_image ? `<img src="data:image/png;base64,${qr.qr_image}" width="150">` : ''; });
             
-            // Load family
             loadFamily();
-        }
-
-        function getProductsForCategory(category) {
-            const products = { 'infant':['Robeez','Stride Rite','New Balance'], 'toddler':['Crocs','Nike','Skechers'], 'child':['Under Armour','Adidas','Puma'], 'adult':['Nike Air Max','Adidas Ultraboost','New Balance'] };
-            return products[category]?.map(p => ({ name: p, price: '$40-60', link: '#', image: '👟', type: 'Recommended' })) || [{ name: 'Popular Shoe', price: '$50', link: '#', image: '👟', type: 'Best Seller' }];
         }
 
         function saveToProfile() {
@@ -233,6 +235,7 @@
         function downloadPDF() { window.open('/download-pdf', '_blank'); }
         function manualCapture() { isAutoCaptureEnabled = false; autoCapture(); }
         function resetApp() { location.reload(); }
+        
         startCamera();
     </script>
 </body>
