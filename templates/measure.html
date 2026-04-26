@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Measure Your Foot - Smart Foot Measure</title>
+    <title>AI Foot Size Detector - Measure</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -13,6 +13,9 @@
             padding: 20px;
         }
         .container { max-width: 600px; margin: 0 auto; }
+        .logo { text-align: center; margin-bottom: 15px; color: white; }
+        .logo h2 { font-size: 1.5em; }
+        .logo p { font-size: 12px; opacity: 0.8; }
         .camera-card {
             background: white;
             border-radius: 30px;
@@ -41,7 +44,7 @@
             pointer-events: none;
             z-index: 10;
         }
-        .border-guide.perfect { border-color: #4CAF50; }
+        .border-guide.perfect { border-color: #4CAF50; box-shadow: 0 0 20px rgba(76,175,80,0.5); }
         .foot-outline {
             position: absolute;
             bottom: 20%;
@@ -53,22 +56,23 @@
             pointer-events: none;
             z-index: 10;
         }
-        .guide-image {
-            background: #f0f0f0;
-            border-radius: 20px;
-            padding: 15px;
-            margin: 20px 0;
-            text-align: center;
+        .distance-bar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            height: 6px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 3px;
+            overflow: hidden;
+            z-index: 10;
         }
-        .guide-image img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 15px;
-        }
-        .guide-text {
-            font-size: 14px;
-            color: #666;
-            margin-top: 10px;
+        .distance-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            transition: width 0.1s;
+            border-radius: 3px;
         }
         .instruction {
             position: absolute;
@@ -80,59 +84,80 @@
             text-align: center;
             padding: 10px;
             border-radius: 25px;
+            font-size: 14px;
             z-index: 10;
         }
-        .distance-bar {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            right: 20px;
-            height: 4px;
-            background: rgba(255,255,255,0.3);
-            border-radius: 2px;
-            overflow: hidden;
-            z-index: 10;
-        }
-        .distance-fill { height: 100%; width: 0%; background: #4CAF50; transition: width 0.1s; }
-        .controls { margin-top: 20px; display: flex; gap: 10px; }
+        .buttons { display: flex; gap: 10px; margin-top: 15px; }
         button {
             flex: 1;
             padding: 12px;
             border: none;
             border-radius: 25px;
             cursor: pointer;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: #2196F3;
             color: white;
             font-weight: bold;
+            font-size: 16px;
         }
-        .loader { display: none; text-align: center; padding: 20px; }
+        .ref-diagram {
+            background: #f8f9fa;
+            border-radius: 20px;
+            padding: 15px;
+            margin-top: 15px;
+            text-align: center;
+        }
+        .ref-diagram svg { max-width: 150px; margin: 0 auto; display: block; }
+        .ref-caption { font-size: 12px; color: #666; margin-top: 10px; }
+        .instructions {
+            background: #e3f2fd;
+            border-radius: 15px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        .instructions h4 { color: #1976D2; margin-bottom: 10px; }
+        .instructions p { font-size: 13px; margin: 5px 0; color: #555; }
+        .loader {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
         .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #764ba2;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #764ba2;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
             animation: spin 1s linear infinite;
-            margin: 0 auto;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loader p { color: white; margin-top: 20px; }
         .toast {
             position: fixed;
             bottom: 100px;
             left: 20px;
             right: 20px;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.9);
             color: white;
             text-align: center;
-            padding: 12px;
-            border-radius: 25px;
-            z-index: 20;
+            padding: 15px;
+            border-radius: 30px;
+            z-index: 200;
             display: none;
         }
     </style>
 </head>
 <body>
     <div class="container">
+        <div class="logo">
+            <h2>🤖 AI Foot Size Detector</h2>
+            <p>Measure Your Foot</p>
+        </div>
+        
         <div class="camera-card">
             <div class="camera-container">
                 <video id="video" autoplay playsinline muted></video>
@@ -140,21 +165,36 @@
                 <div class="border-guide" id="borderGuide"></div>
                 <div class="foot-outline"></div>
                 <div class="distance-bar"><div class="distance-fill" id="distanceFill"></div></div>
-                <div class="instruction" id="instruction">📱 Move until green line fills</div>
+                <div class="instruction" id="instruction">📱 Place foot inside outline</div>
             </div>
-
-            <div class="guide-image">
-                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 300'%3E%3Cpath d='M100,20 C130,20 160,80 160,150 C160,220 140,270 100,280 C60,270 40,220 40,150 C40,80 70,20 100,20Z' fill='%23f5e6d3' stroke='%23764ba2' stroke-width='2'/%3E%3Cline x1='40' y1='150' x2='160' y2='150' stroke='%23ff4444' stroke-width='2' stroke-dasharray='5,5'/%3E%3Ctext x='165' y='150' fill='%23ff4444' font-size='12'%3EWidth%3C/text%3E%3Cline x1='100' y1='20' x2='100' y2='280' stroke='%234CAF50' stroke-width='2' stroke-dasharray='5,5'/%3E%3Ctext x='80' y='15' fill='%234CAF50' font-size='12'%3ELength from heel to longest toe%3C/text%3E%3C/svg%3E"
-                     alt="Foot measurement guide">
-                <div class="guide-text">✅ Place foot flat, camera above. Move until top bar turns GREEN.</div>
+            
+            <div class="buttons">
+                <button id="captureBtn" onclick="manualCapture()">📸 CAPTURE</button>
+                <button id="recaptureBtn" onclick="resetAndRecapture()" style="display:none;">🔄 RECAPTURE</button>
             </div>
-
-            <div class="controls">
-                <button onclick="window.location.href='/reset'">🔄 Reset</button>
+            
+            <div class="ref-diagram">
+                <svg width="150" height="200" viewBox="0 0 150 200">
+                    <path d="M75,20 C100,20 120,70 120,120 C120,170 105,190 75,190 C45,190 30,170 30,120 C30,70 50,20 75,20Z" fill="#f5e6d3" stroke="#764ba2" stroke-width="2"/>
+                    <line x1="75" y1="20" x2="75" y2="190" stroke="#4CAF50" stroke-width="2" stroke-dasharray="5,5"/>
+                    <text x="80" y="100" fill="#4CAF50" font-size="10">↑ Heel to</text>
+                    <text x="80" y="115" fill="#4CAF50" font-size="10">Longest Toe</text>
+                </svg>
+                <div class="ref-caption">📏 Total Foot Length (Heel → Longest Toe)</div>
             </div>
-            <div class="loader" id="loader"><div class="spinner"></div><p>Measuring...</p></div>
+            
+            <div class="instructions">
+                <h4>✅ How to take photo:</h4>
+                <p>1️⃣ Place foot flat on the floor</p>
+                <p>2️⃣ Camera directly ABOVE the foot</p>
+                <p>3️⃣ Align heel & toe inside outline</p>
+                <p>4️⃣ Move until distance bar fills & border turns GREEN</p>
+                <p>5️⃣ App auto-captures OR click CAPTURE button</p>
+            </div>
         </div>
     </div>
+    
+    <div class="loader" id="loader"><div class="spinner"></div><p>🤖 AI analyzing your foot...</p></div>
     <div class="toast" id="toast"></div>
 
     <script>
@@ -163,8 +203,9 @@
         const ctx = canvas.getContext('2d');
         let captureInterval = null;
         let isProcessing = false;
+        let hasCaptured = false;
 
-        function showToast(msg) {
+        function showToast(msg, isError = true) {
             const toast = document.getElementById('toast');
             toast.innerText = msg;
             toast.style.display = 'block';
@@ -180,14 +221,14 @@
                 canvas.height = video.videoHeight;
                 startAutoDetection();
             } catch (err) {
-                showToast('❌ Camera access denied');
+                showToast('❌ Camera access denied. Please allow camera.');
             }
         }
 
         function startAutoDetection() {
             if (captureInterval) clearInterval(captureInterval);
             captureInterval = setInterval(() => {
-                if (video.videoWidth > 0 && !isProcessing) analyzeFrame();
+                if (video.videoWidth > 0 && !isProcessing && !hasCaptured) analyzeFrame();
             }, 300);
         }
 
@@ -205,31 +246,31 @@
                     const percent = Math.min(100, ratio * 100);
                     document.getElementById('distanceFill').style.width = percent + '%';
                     
-                    if (percent > 85 && percent < 105 && !isProcessing) {
-                        // Green zone - auto capture
+                    if (percent > 85 && percent < 105 && !isProcessing && !hasCaptured) {
                         document.getElementById('borderGuide').classList.add('perfect');
-                        document.getElementById('instruction').innerHTML = '✅ Capturing...';
+                        document.getElementById('instruction').innerHTML = '✅ Perfect distance! Capturing...';
                         isProcessing = true;
                         clearInterval(captureInterval);
-                        setTimeout(() => capturePhoto(), 200);
+                        setTimeout(() => capturePhoto(), 300);
                     } else {
                         document.getElementById('borderGuide').classList.remove('perfect');
                         document.getElementById('instruction').innerHTML = '📱 Move until green line fills';
                     }
                 } else {
                     document.getElementById('distanceFill').style.width = '0%';
-                    document.getElementById('borderGuide').classList.remove('perfect');
                 }
             })
-            .catch(err => {
-                console.log('Analysis error');
-            });
+            .catch(err => console.log('Analysis error'));
         }
 
         function capturePhoto() {
+            if (hasCaptured) return;
+            hasCaptured = true;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             const imageData = canvas.toDataURL('image/jpeg');
-            document.getElementById('loader').style.display = 'block';
+            document.getElementById('loader').style.display = 'flex';
+            document.getElementById('captureBtn').style.display = 'none';
+            document.getElementById('recaptureBtn').style.display = 'block';
 
             fetch('/analyze', {
                 method: 'POST',
@@ -239,7 +280,6 @@
             .then(res => res.json())
             .then(data => {
                 document.getElementById('loader').style.display = 'none';
-                
                 if (data.success && data.foot_cm) {
                     sessionStorage.setItem('measureResult', JSON.stringify(data));
                     window.location.href = '/result';
@@ -255,10 +295,21 @@
             });
         }
 
+        function manualCapture() {
+            if (hasCaptured) return;
+            isProcessing = true;
+            hasCaptured = true;
+            clearInterval(captureInterval);
+            capturePhoto();
+        }
+
         function resetAndRecapture() {
+            hasCaptured = false;
             isProcessing = false;
+            document.getElementById('captureBtn').style.display = 'block';
+            document.getElementById('recaptureBtn').style.display = 'none';
             document.getElementById('borderGuide').classList.remove('perfect');
-            document.getElementById('instruction').innerHTML = '📱 Move until green line fills';
+            document.getElementById('instruction').innerHTML = '📱 Place foot inside outline';
             document.getElementById('distanceFill').style.width = '0%';
             if (captureInterval) clearInterval(captureInterval);
             startAutoDetection();

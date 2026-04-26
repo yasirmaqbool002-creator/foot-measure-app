@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Results - Smart Foot Measure</title>
+    <title>AI Foot Size Detector - Results</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -13,13 +13,24 @@
             padding: 20px;
         }
         .container { max-width: 600px; margin: 0 auto; }
+        .logo { text-align: center; margin-bottom: 20px; color: white; }
+        .logo h2 { font-size: 1.5em; }
         .result-card {
             background: white;
             border-radius: 30px;
             padding: 30px;
             margin-bottom: 20px;
-            text-align: center;
         }
+        .length-box {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 20px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .length-box h3 { font-size: 14px; opacity: 0.8; margin-bottom: 5px; }
+        .length-box .value { font-size: 48px; font-weight: bold; }
         .size-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -30,52 +41,140 @@
             background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
             border-radius: 15px;
             padding: 15px;
+            text-align: center;
         }
-        .size-value { font-size: 32px; font-weight: bold; color: #764ba2; }
-        .info-box {
+        .size-label { font-size: 12px; color: #666; }
+        .size-value { font-size: 28px; font-weight: bold; color: #764ba2; }
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .product-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #e0e0e0;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .product-card:hover { transform: scale(1.02); background: #e8f5e9; }
+        .product-name { font-weight: bold; }
+        .product-price { color: #4CAF50; font-weight: bold; margin: 5px 0; }
+        .buy-btn {
+            background: #ff9900;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            display: inline-block;
+        }
+        .growth-box {
             background: #e8f5e9;
             border-radius: 15px;
             padding: 15px;
             margin: 15px 0;
+            text-align: center;
         }
-        button {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .action-buttons button {
+            flex: 1;
+            padding: 15px;
             border: none;
-            padding: 12px 25px;
             border-radius: 25px;
-            font-size: 16px;
             cursor: pointer;
-            margin: 10px;
+            font-weight: bold;
+            font-size: 14px;
         }
+        .btn-measure { background: #2196F3; color: white; }
+        .btn-home { background: #9E9E9E; color: white; }
+        @media (max-width: 500px) { .product-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="result-card">
-            <h2>📏 Your Foot Length</h2>
-            <div class="info-box">
-                <strong id="footLength">--</strong> cm
+        <div class="logo">
+            <h2>🤖 AI Foot Size Detector</h2>
+            <p>Your Results</p>
+        </div>
+        
+        <div class="result-card" id="resultCard">
+            <div class="length-box">
+                <h3>📏 TOTAL FOOT LENGTH (Heel → Longest Toe)</h3>
+                <div class="value" id="footLength">--</div>
+                <div>cm</div>
             </div>
-            <h3>👟 Recommended Shoe Sizes</h3>
+            
+            <h3 style="text-align:center;">👟 Recommended Shoe Sizes</h3>
             <div class="size-grid">
-                <div class="size-card"><div>🇺🇸 US</div><div class="size-value" id="usSize">-</div></div>
-                <div class="size-card"><div>🇬🇧 UK</div><div class="size-value" id="ukSize">-</div></div>
-                <div class="size-card"><div>🇪🇺 EU</div><div class="size-value" id="euSize">-</div></div>
+                <div class="size-card"><div class="size-label">🇺🇸 US Size</div><div class="size-value" id="usSize">-</div></div>
+                <div class="size-card"><div class="size-label">🇬🇧 UK Size</div><div class="size-value" id="ukSize">-</div></div>
+                <div class="size-card"><div class="size-label">🇪🇺 EU Size</div><div class="size-value" id="euSize">-</div></div>
             </div>
-            <button onclick="window.location.href='/measure'">📷 Measure Again</button>
-            <button onclick="window.location.href='/'">🏠 Home</button>
+            
+            <h3 style="text-align:center;">🛍️ Recommended For You</h3>
+            <div class="product-grid" id="productGrid"></div>
+            
+            <div id="growthBox" style="display:none;"></div>
+            
+            <div class="action-buttons">
+                <button class="btn-measure" onclick="measureAgain()">🔁 Measure Another Foot</button>
+                <button class="btn-home" onclick="goHome()">🏠 Home</button>
+            </div>
         </div>
     </div>
+    
     <script>
         const result = JSON.parse(sessionStorage.getItem('measureResult'));
+        
         if (result && result.success) {
-            document.getElementById('footLength').innerText = result.foot_cm;
-            document.getElementById('usSize').innerText = result.sizes.US;
-            document.getElementById('ukSize').innerText = result.sizes.UK;
-            document.getElementById('euSize').innerText = result.sizes.EU;
+            document.getElementById('footLength').innerHTML = result.foot_cm;
+            document.getElementById('usSize').innerHTML = result.sizes.US;
+            document.getElementById('ukSize').innerHTML = result.sizes.UK;
+            document.getElementById('euSize').innerHTML = result.sizes.EU;
+            
+            // Display products
+            if (result.products && result.products.length > 0) {
+                const productsHtml = result.products.map(p => `
+                    <div class="product-card" onclick="window.open('${p.link}', '_blank')">
+                        <div class="product-name">${p.image} ${p.name}</div>
+                        <div class="product-price">${p.price}</div>
+                        <span class="buy-btn">Buy on Amazon →</span>
+                    </div>
+                `).join('');
+                document.getElementById('productGrid').innerHTML = productsHtml;
+            }
+            
+            // Display growth prediction if exists
+            if (result.growth) {
+                document.getElementById('growthBox').innerHTML = `
+                    <div class="growth-box">
+                        <strong>📈 Growth Prediction</strong><br><br>
+                        📊 3 months: US ${result.growth['3_months']}<br>
+                        📊 6 months: US ${result.growth['6_months']}<br>
+                        📊 12 months: US ${result.growth['12_months']}
+                    </div>
+                `;
+                document.getElementById('growthBox').style.display = 'block';
+            }
         } else {
-            document.body.innerHTML = '<div class="result-card"><h2>Error</h2><p>No measurement data. Please try again.</p><button onclick="window.location.href=\'/measure\'">Go Back</button></div>';
+            document.getElementById('resultCard').innerHTML = '<h2 style="text-align:center;">❌ No measurement data</h2><div class="action-buttons"><button class="btn-measure" onclick="measureAgain()">Try Again</button></div>';
+        }
+        
+        function measureAgain() {
+            sessionStorage.removeItem('measureResult');
+            window.location.href = '/measure';
+        }
+        
+        function goHome() {
+            sessionStorage.removeItem('measureResult');
+            window.location.href = '/info';
         }
     </script>
 </body>
