@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Results - Smart Foot Measure</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        .result-card {
+            background: white;
+            border-radius: 30px;
+            padding: 30px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .size-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .size-card {
+            background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+            border-radius: 15px;
+            padding: 15px;
+        }
+        .size-value { font-size: 32px; font-weight: bold; color: #764ba2; }
+        .info-box {
+            background: #e8f5e9;
+            border-radius: 15px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="result-card">
+            <h2>📏 Your Foot Length</h2>
+            <div class="info-box">
+                <strong id="footLength">--</strong> cm
+            </div>
+            <h3>👟 Recommended Shoe Sizes</h3>
+            <div class="size-grid">
+                <div class="size-card"><div>🇺🇸 US</div><div class="size-value" id="usSize">-</div></div>
+                <div class="size-card"><div>🇬🇧 UK</div><div class="size-value" id="ukSize">-</div></div>
+                <div class="size-card"><div>🇪🇺 EU</div><div class="size-value" id="euSize">-</div></div>
+            </div>
+            <button onclick="window.location.href='/measure'">📷 Measure Again</button>
+            <button onclick="window.location.href='/'">🏠 Home</button>
+        </div>
+    </div>
+    <script>
+        const result = JSON.parse(sessionStorage.getItem('measureResult'));
+        if (result && result.success) {
+            document.getElementById('footLength').innerText = result.foot_cm;
+            document.getElementById('usSize').innerText = result.sizes.US;
+            document.getElementById('ukSize').innerText = result.sizes.UK;
+            document.getElementById('euSize').innerText = result.sizes.EU;
+        } else {
+            document.body.innerHTML = '<div class="result-card"><h2>Error</h2><p>No measurement data. Please try again.</p><button onclick="window.location.href=\'/measure\'">Go Back</button></div>';
+        }
+    </script>
+</body>
+</html>

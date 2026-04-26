@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Smart Foot Measure</title>
+    <title>Measure Your Foot - Smart Foot Measure</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -13,49 +13,109 @@
             padding: 20px;
         }
         .container { max-width: 600px; margin: 0 auto; }
-        .camera-card { background: white; border-radius: 30px; padding: 20px; margin-bottom: 20px; }
-        .camera-container { position: relative; background: #000; border-radius: 20px; overflow: hidden; aspect-ratio: 3/4; }
-        video, canvas { width: 100%; height: 100%; object-fit: cover; }
+        .camera-card {
+            background: white;
+            border-radius: 30px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .camera-container {
+            position: relative;
+            background: #000;
+            border-radius: 20px;
+            overflow: hidden;
+            aspect-ratio: 3/4;
+        }
+        video, canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
         canvas { position: absolute; top: 0; left: 0; }
-        .border-guide { position: absolute; top: 0; left: 0; right: 0; bottom: 0; border: 4px solid #ff4444; border-radius: 20px; pointer-events: none; z-index: 10; transition: border-color 0.2s; }
+        .border-guide {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border: 4px solid #ff4444;
+            border-radius: 20px;
+            transition: border-color 0.1s;
+            pointer-events: none;
+            z-index: 10;
+        }
         .border-guide.perfect { border-color: #4CAF50; }
-        .foot-outline { position: absolute; bottom: 20%; left: 15%; right: 15%; height: 40%; border: 2px dashed rgba(255,255,255,0.5); border-radius: 60px 60px 30px 30px; pointer-events: none; z-index: 10; }
-        .instruction { position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.8); color: white; text-align: center; padding: 12px; border-radius: 25px; z-index: 10; font-size: 14px; }
-        .distance-bar { position: absolute; top: 20px; left: 20px; right: 20px; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; overflow: hidden; z-index: 10; }
-        .distance-fill { height: 100%; width: 0%; background: #4CAF50; transition: width 0.1s; }
-        .results { display: none; margin-top: 20px; animation: fadeIn 0.5s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .result-card { background: white; border-radius: 20px; padding: 20px; margin-bottom: 15px; }
-        .size-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 15px 0; }
-        .size-card { background: linear-gradient(135deg, #f5f7fa, #c3cfe2); border-radius: 15px; padding: 15px; text-align: center; }
-        .size-value { font-size: 28px; font-weight: bold; color: #764ba2; }
-        .info-box { background: #e8f5e9; border-radius: 15px; padding: 15px; margin: 15px 0; text-align: center; }
-        .loader { display: none; text-align: center; padding: 20px; }
-        .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #764ba2; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .popup-toast {
-            position: fixed;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #ff4444;
+        .foot-outline {
+            position: absolute;
+            bottom: 20%;
+            left: 15%;
+            right: 15%;
+            height: 40%;
+            border: 2px dashed rgba(255,255,255,0.5);
+            border-radius: 60px 60px 30px 30px;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .guide-image {
+            background: #f0f0f0;
+            border-radius: 20px;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .guide-image svg {
+            max-width: 100%;
+            height: auto;
+            border-radius: 15px;
+        }
+        .guide-text {
+            font-size: 14px;
+            color: #666;
+            margin-top: 10px;
+        }
+        .instruction {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
             color: white;
-            padding: 12px 24px;
-            border-radius: 50px;
-            font-size: 16px;
+            text-align: center;
+            padding: 10px;
+            border-radius: 25px;
+            z-index: 10;
+        }
+        .distance-bar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            height: 4px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+            overflow: hidden;
+            z-index: 10;
+        }
+        .distance-fill { height: 100%; width: 0%; background: #4CAF50; transition: width 0.1s; }
+        .controls { margin-top: 20px; display: flex; gap: 10px; }
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
             font-weight: bold;
-            z-index: 1000;
-            display: none;
-            animation: slideUp 0.3s ease;
         }
-        .popup-toast.success { background: #4CAF50; }
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateX(-50%) translateY(20px); }
-            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .loader { display: none; text-align: center; padding: 20px; }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #764ba2;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
         }
-        .btn-recapture { background: #764ba2; margin-top: 10px; width: 100%; padding: 15px; font-size: 16px; }
-        .btn-pdf { background: #ff9800; margin-top: 10px; width: 100%; padding: 15px; font-size: 16px; }
-        @media (max-width: 768px) { .size-grid { grid-template-columns: 1fr; } }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -67,28 +127,30 @@
                 <div class="border-guide" id="borderGuide"></div>
                 <div class="foot-outline"></div>
                 <div class="distance-bar"><div class="distance-fill" id="distanceFill"></div></div>
-                <div class="instruction" id="instruction">👣 Place your foot inside the outline</div>
+                <div class="instruction" id="instruction">📱 Place foot inside outline</div>
             </div>
-            <div class="loader" id="loader"><div class="spinner"></div><p>AI analyzing...</p></div>
-            <div class="results" id="results">
-                <div class="result-card">
-                    <h3>👟 Your Shoe Sizes</h3>
-                    <div class="size-grid">
-                        <div class="size-card"><div>🇺🇸 US</div><div class="size-value" id="usSize">-</div></div>
-                        <div class="size-card"><div>🇬🇧 UK</div><div class="size-value" id="ukSize">-</div></div>
-                        <div class="size-card"><div>🇪🇺 EU</div><div class="size-value" id="euSize">-</div></div>
-                    </div>
-                </div>
-                <div class="result-card">
-                    <h3>📏 Measured Length</h3>
-                    <div class="info-box"><span id="footLength">--</span> cm</div>
-                </div>
-                <button class="btn-recapture" onclick="resetApp()">🔄 Recapture</button>
-                <button class="btn-pdf" onclick="downloadPDF()">📄 Download PDF Report</button>
+
+            <!-- GUIDE IMAGE -->
+            <div class="guide-image">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" width="100%" height="auto">
+                    <rect width="300" height="200" fill="#f5f5f5" rx="10"/>
+                    <path d="M50,50 L250,50 L250,150 L50,150 Z" fill="#e0e0e0" stroke="#764ba2" stroke-width="2"/>
+                    <circle cx="70" cy="100" r="8" fill="#4CAF50"/>
+                    <circle cx="230" cy="100" r="8" fill="#4CAF50"/>
+                    <line x1="70" y1="100" x2="230" y2="100" stroke="#ff4444" stroke-width="2" stroke-dasharray="5,5"/>
+                    <text x="150" y="180" text-anchor="middle" fill="#333" font-size="12">Place foot here, heel to longest toe</text>
+                    <text x="150" y="40" text-anchor="middle" fill="#764ba2" font-size="14">📏 Measure from heel 👣 to longest toe</text>
+                </svg>
+                <div class="guide-text">✅ Place your foot flat inside the outline. Camera directly above. Keep heel and longest toe visible.</div>
             </div>
+
+            <div class="controls">
+                <button onclick="manualCapture()">📸 Capture Now</button>
+                <button onclick="window.location.href='/reset'">🔄 Reset</button>
+            </div>
+            <div class="loader" id="loader"><div class="spinner"></div><p>AI measuring...</p></div>
         </div>
     </div>
-    <div id="popupToast" class="popup-toast"></div>
 
     <script>
         const video = document.getElementById('video');
@@ -96,23 +158,6 @@
         const ctx = canvas.getContext('2d');
         let captureInterval = null;
         let isAutoCaptureEnabled = true;
-        let currentResult = null;
-
-        function showPopup(message, isSuccess = false) {
-            const toast = document.getElementById('popupToast');
-            toast.className = isSuccess ? 'popup-toast success' : 'popup-toast';
-            toast.innerHTML = message;
-            toast.style.display = 'block';
-            setTimeout(() => {
-                toast.style.display = 'none';
-            }, 2000);
-        }
-
-        window.addEventListener('load', function() {
-            document.getElementById('results').style.display = 'none';
-            document.getElementById('loader').style.display = 'none';
-            isAutoCaptureEnabled = true;
-        });
 
         async function startCamera() {
             try {
@@ -123,7 +168,7 @@
                 canvas.height = video.videoHeight;
                 startAutoDetection();
             } catch (err) {
-                showPopup('❌ Camera access denied. Please allow camera permission.');
+                document.getElementById('instruction').innerText = '❌ Camera access denied';
             }
         }
 
@@ -138,151 +183,52 @@
             fetch('/analyze', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    image: canvas.toDataURL('image/jpeg'), 
-                    frame_height: canvas.height
-                })
+                body: JSON.stringify({ image: canvas.toDataURL('image/jpeg'), frame_height: canvas.height })
             })
             .then(res => res.json())
             .then(data => {
                 if (data.success && data.pixel_length) {
                     const ratio = data.pixel_length / (canvas.height * 0.6);
                     document.getElementById('distanceFill').style.width = Math.min(100, ratio * 100) + '%';
-                    
-                    if (ratio > 0.7 && ratio < 1.3 && isAutoCaptureEnabled) {
+                    if (ratio > 0.85 && ratio < 1.05 && isAutoCaptureEnabled) {
                         document.getElementById('borderGuide').classList.add('perfect');
                         document.getElementById('instruction').innerHTML = '✅ Perfect! Capturing...';
                         isAutoCaptureEnabled = false;
                         setTimeout(() => autoCapture(), 500);
-                    } else if (ratio < 0.5) {
-                        document.getElementById('borderGuide').classList.remove('perfect');
-                        document.getElementById('instruction').innerHTML = '📱 Move CLOSER';
-                    } else if (ratio > 1.5) {
-                        document.getElementById('borderGuide').classList.remove('perfect');
-                        document.getElementById('instruction').innerHTML = '📱 Move FARTHER';
-                    } else {
-                        document.getElementById('borderGuide').classList.remove('perfect');
-                        document.getElementById('instruction').innerHTML = '👣 Adjust position';
                     }
-                } else if (data.error === 'foot_not_found') {
-                    document.getElementById('borderGuide').classList.remove('perfect');
-                    document.getElementById('instruction').innerHTML = '👣 Place your foot clearly';
-                    showPopup('❌ FOOT NOT FOUND! Place your foot inside the outline.');
                 }
             });
         }
 
         function autoCapture() {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = canvas.toDataURL('image/jpeg');
             document.getElementById('loader').style.display = 'block';
+
             fetch('/analyze', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    image: canvas.toDataURL('image/jpeg'), 
-                    frame_height: canvas.height
-                })
+                body: JSON.stringify({ image: imageData, frame_height: canvas.height })
             })
             .then(res => res.json())
             .then(data => {
                 document.getElementById('loader').style.display = 'none';
                 if (data.success) {
-                    currentResult = data;
-                    document.getElementById('footLength').textContent = data.foot_cm;
-                    document.getElementById('usSize').textContent = data.sizes.US;
-                    document.getElementById('ukSize').textContent = data.sizes.UK;
-                    document.getElementById('euSize').textContent = data.sizes.EU;
-                    document.getElementById('results').style.display = 'block';
-                    if (captureInterval) clearInterval(captureInterval);
-                    showPopup('✅ Measurement successful!', true);
-                } else if (data.error === 'foot_not_found') {
-                    showPopup('❌ FOOT NOT FOUND! Please place your foot clearly.');
-                    isAutoCaptureEnabled = true;
+                    sessionStorage.setItem('measureResult', JSON.stringify(data));
+                    window.location.href = '/result';
                 } else {
-                    showPopup('⚠️ Could not measure. Please try again.');
+                    alert('Could not measure. Please try again.');
                     isAutoCaptureEnabled = true;
+                    document.getElementById('borderGuide').classList.remove('perfect');
                 }
             });
         }
 
-        function resetApp() { location.reload(); }
-        
-        function downloadPDF() {
-            if (!currentResult) {
-                showPopup('⚠️ No measurement found. Please measure first.');
-                return;
-            }
-            
-            // Create PDF content as HTML
-            const date = new Date();
-            const formattedDate = date.toLocaleDateString();
-            const formattedTime = date.toLocaleTimeString();
-            
-            const pdfContent = `
-                <html>
-                <head>
-                    <title>Foot Measurement Report</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; padding: 40px; }
-                        h1 { color: #764ba2; }
-                        .header { text-align: center; margin-bottom: 30px; }
-                        .info { margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 10px; }
-                        .sizes { display: flex; gap: 20px; justify-content: center; margin: 30px 0; }
-                        .size-box { text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 15px; min-width: 100px; }
-                        .size-value { font-size: 32px; font-weight: bold; }
-                        .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #999; }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <h1>📏 Foot Measurement Report</h1>
-                        <p>Generated on ${formattedDate} at ${formattedTime}</p>
-                    </div>
-                    
-                    <div class="info">
-                        <p><strong>👤 Name:</strong> ${sessionStorage.getItem('userName') || 'Guest'}</p>
-                        <p><strong>📏 Measured Foot Length:</strong> ${currentResult.foot_cm} cm</p>
-                    </div>
-                    
-                    <h3>👟 Recommended Shoe Sizes</h3>
-                    <div class="sizes">
-                        <div class="size-box">
-                            <div>🇺🇸 US</div>
-                            <div class="size-value">${currentResult.sizes.US}</div>
-                        </div>
-                        <div class="size-box">
-                            <div>🇬🇧 UK</div>
-                            <div class="size-value">${currentResult.sizes.UK}</div>
-                        </div>
-                        <div class="size-box">
-                            <div>🇪🇺 EU</div>
-                            <div class="size-value">${currentResult.sizes.EU}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="info">
-                        <p><strong>💡 Tips:</strong></p>
-                        <ul>
-                            <li>Try shoes at the end of the day when feet are slightly swollen</li>
-                            <li>Leave a thumb's width of space in toe area</li>
-                            <li>Different brands may fit differently - always try before buying</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="footer">
-                        <p>Measured with Smart Foot Measure App</p>
-                    </div>
-                </body>
-                </html>
-            `;
-            
-            // Open PDF in new window for printing/saving
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(pdfContent);
-            printWindow.document.close();
-            printWindow.print();
+        function manualCapture() {
+            isAutoCaptureEnabled = false;
+            autoCapture();
         }
-        
+
         startCamera();
     </script>
 </body>
