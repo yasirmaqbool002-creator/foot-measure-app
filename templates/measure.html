@@ -23,8 +23,6 @@
         .instruction { position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.8); color: white; text-align: center; padding: 12px; border-radius: 25px; z-index: 10; font-size: 14px; }
         .distance-bar { position: absolute; top: 20px; left: 20px; right: 20px; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; overflow: hidden; z-index: 10; }
         .distance-fill { height: 100%; width: 0%; background: #4CAF50; transition: width 0.1s; }
-        .controls { margin-top: 20px; display: flex; gap: 10px; }
-        button { flex: 1; padding: 12px; border: none; border-radius: 25px; cursor: pointer; background: linear-gradient(135deg, #667eea, #764ba2); color: white; font-weight: bold; }
         .results { display: none; margin-top: 20px; animation: fadeIn 0.5s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .result-card { background: white; border-radius: 20px; padding: 20px; margin-bottom: 15px; }
@@ -55,7 +53,8 @@
             from { opacity: 0; transform: translateX(-50%) translateY(20px); }
             to { opacity: 1; transform: translateX(-50%) translateY(0); }
         }
-        .btn-reset { background: #764ba2; margin-top: 10px; }
+        .btn-recapture { background: #764ba2; margin-top: 10px; width: 100%; padding: 15px; font-size: 16px; }
+        .btn-pdf { background: #ff9800; margin-top: 10px; width: 100%; padding: 15px; font-size: 16px; }
         @media (max-width: 768px) { .size-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -69,10 +68,6 @@
                 <div class="foot-outline"></div>
                 <div class="distance-bar"><div class="distance-fill" id="distanceFill"></div></div>
                 <div class="instruction" id="instruction">👣 Place your foot inside the outline</div>
-            </div>
-            <div class="controls">
-                <button onclick="manualCapture()">📸 Capture</button>
-                <button onclick="window.location.href='/reset'">🔄 Reset</button>
             </div>
             <div class="loader" id="loader"><div class="spinner"></div><p>AI analyzing...</p></div>
             <div class="results" id="results">
@@ -88,8 +83,8 @@
                     <h3>📏 Measured Length</h3>
                     <div class="info-box"><span id="footLength">--</span> cm</div>
                 </div>
-                <button class="btn-reset" onclick="resetApp()">🔄 Recapture</button>
-                <button class="btn-reset" onclick="downloadPDF()">📄 Download PDF</button>
+                <button class="btn-recapture" onclick="resetApp()">🔄 Recapture</button>
+                <button class="btn-pdf" onclick="downloadPDF()">📄 Download PDF Report</button>
             </div>
         </div>
     </div>
@@ -101,6 +96,7 @@
         const ctx = canvas.getContext('2d');
         let captureInterval = null;
         let isAutoCaptureEnabled = true;
+        let currentResult = null;
 
         function showPopup(message, isSuccess = false) {
             const toast = document.getElementById('popupToast');
@@ -191,6 +187,7 @@
             .then(data => {
                 document.getElementById('loader').style.display = 'none';
                 if (data.success) {
+                    currentResult = data;
                     document.getElementById('footLength').textContent = data.foot_cm;
                     document.getElementById('usSize').textContent = data.sizes.US;
                     document.getElementById('ukSize').textContent = data.sizes.UK;
@@ -208,9 +205,83 @@
             });
         }
 
-        function manualCapture() { isAutoCaptureEnabled = false; autoCapture(); }
         function resetApp() { location.reload(); }
-        function downloadPDF() { showPopup('📄 PDF download coming soon!'); }
+        
+        function downloadPDF() {
+            if (!currentResult) {
+                showPopup('⚠️ No measurement found. Please measure first.');
+                return;
+            }
+            
+            // Create PDF content as HTML
+            const date = new Date();
+            const formattedDate = date.toLocaleDateString();
+            const formattedTime = date.toLocaleTimeString();
+            
+            const pdfContent = `
+                <html>
+                <head>
+                    <title>Foot Measurement Report</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 40px; }
+                        h1 { color: #764ba2; }
+                        .header { text-align: center; margin-bottom: 30px; }
+                        .info { margin: 20px 0; padding: 15px; background: #f5f5f5; border-radius: 10px; }
+                        .sizes { display: flex; gap: 20px; justify-content: center; margin: 30px 0; }
+                        .size-box { text-align: center; padding: 20px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 15px; min-width: 100px; }
+                        .size-value { font-size: 32px; font-weight: bold; }
+                        .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #999; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>📏 Foot Measurement Report</h1>
+                        <p>Generated on ${formattedDate} at ${formattedTime}</p>
+                    </div>
+                    
+                    <div class="info">
+                        <p><strong>👤 Name:</strong> ${sessionStorage.getItem('userName') || 'Guest'}</p>
+                        <p><strong>📏 Measured Foot Length:</strong> ${currentResult.foot_cm} cm</p>
+                    </div>
+                    
+                    <h3>👟 Recommended Shoe Sizes</h3>
+                    <div class="sizes">
+                        <div class="size-box">
+                            <div>🇺🇸 US</div>
+                            <div class="size-value">${currentResult.sizes.US}</div>
+                        </div>
+                        <div class="size-box">
+                            <div>🇬🇧 UK</div>
+                            <div class="size-value">${currentResult.sizes.UK}</div>
+                        </div>
+                        <div class="size-box">
+                            <div>🇪🇺 EU</div>
+                            <div class="size-value">${currentResult.sizes.EU}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="info">
+                        <p><strong>💡 Tips:</strong></p>
+                        <ul>
+                            <li>Try shoes at the end of the day when feet are slightly swollen</li>
+                            <li>Leave a thumb's width of space in toe area</li>
+                            <li>Different brands may fit differently - always try before buying</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="footer">
+                        <p>Measured with Smart Foot Measure App</p>
+                    </div>
+                </body>
+                </html>
+            `;
+            
+            // Open PDF in new window for printing/saving
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(pdfContent);
+            printWindow.document.close();
+            printWindow.print();
+        }
         
         startCamera();
     </script>

@@ -8,12 +8,10 @@ app = Flask(__name__)
 app.secret_key = 'foot_measure_secret_2026'
 
 def is_foot_shape(contour):
-    """Check if contour shape is a foot (long and narrow)"""
     x, y, w, h = cv2.boundingRect(contour)
     aspect_ratio = h / w if w > 0 else 0
     area = cv2.contourArea(contour)
     
-    # Foot characteristics: long and narrow
     if 2.2 < aspect_ratio < 4.0 and area > 5000:
         return True
     return False
@@ -47,20 +45,18 @@ def detect_foot_only(image_data):
         return None, None
 
 def calculate_foot_size(pixel_length, frame_height):
-    """Estimate foot size based on pixel length and frame height"""
-    # Foot typically takes 50-80% of frame when properly positioned
     ratio = pixel_length / frame_height
     
     if ratio < 0.3:
-        return 18  # Too far, assume small
+        return 18
     elif ratio < 0.5:
-        return 22  # Far
+        return 22
     elif ratio < 0.7:
-        return 25  # Good distance - average
+        return 25
     elif ratio < 0.9:
-        return 28  # Close
+        return 28
     else:
-        return 31  # Very close
+        return 31
 
 def get_shoe_sizes(foot_cm):
     if foot_cm <= 20:
@@ -105,7 +101,7 @@ def info():
 
 @app.route('/measure')
 def measure():
-    return render_template('measure.html')
+    return render_template('measure.html', user_name=session.get('user_name', 'Guest'))
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
@@ -120,10 +116,9 @@ def analyze():
             return jsonify({
                 'success': False,
                 'error': 'foot_not_found',
-                'message': '❌ FOOT NOT FOUND! Please place your foot clearly in the frame.'
+                'message': '❌ FOOT NOT FOUND! Please place your foot clearly.'
             })
         
-        # Calculate foot size based on pixel length
         foot_cm = calculate_foot_size(foot['h'], frame_height)
         sizes = get_shoe_sizes(foot_cm)
         
@@ -131,11 +126,16 @@ def analyze():
             'success': True,
             'foot_cm': foot_cm,
             'sizes': sizes,
-            'pixel_length': foot['h']
+            'pixel_length': foot['h'],
+            'user_name': session.get('user_name', 'Guest')
         })
         
     except Exception as e:
         return jsonify({'success': False, 'error': 'exception', 'message': str(e)})
+
+@app.route('/get_user')
+def get_user():
+    return jsonify({'name': session.get('user_name', 'Guest')})
 
 @app.route('/reset')
 def reset():
