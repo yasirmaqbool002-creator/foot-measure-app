@@ -60,7 +60,7 @@
             margin: 20px 0;
             text-align: center;
         }
-        .guide-image svg {
+        .guide-image img {
             max-width: 100%;
             height: auto;
             border-radius: 15px;
@@ -105,6 +105,7 @@
             color: white;
             font-weight: bold;
         }
+        .recapture-btn { background: #ff9800; }
         .loader { display: none; text-align: center; padding: 20px; }
         .spinner {
             border: 3px solid #f3f3f3;
@@ -130,23 +131,16 @@
                 <div class="instruction" id="instruction">📱 Place foot inside outline</div>
             </div>
 
-            <!-- GUIDE IMAGE -->
             <div class="guide-image">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" width="100%" height="auto">
-                    <rect width="300" height="200" fill="#f5f5f5" rx="10"/>
-                    <path d="M50,50 L250,50 L250,150 L50,150 Z" fill="#e0e0e0" stroke="#764ba2" stroke-width="2"/>
-                    <circle cx="70" cy="100" r="8" fill="#4CAF50"/>
-                    <circle cx="230" cy="100" r="8" fill="#4CAF50"/>
-                    <line x1="70" y1="100" x2="230" y2="100" stroke="#ff4444" stroke-width="2" stroke-dasharray="5,5"/>
-                    <text x="150" y="180" text-anchor="middle" fill="#333" font-size="12">Place foot here, heel to longest toe</text>
-                    <text x="150" y="40" text-anchor="middle" fill="#764ba2" font-size="14">📏 Measure from heel 👣 to longest toe</text>
-                </svg>
-                <div class="guide-text">✅ Place your foot flat inside the outline. Camera directly above. Keep heel and longest toe visible.</div>
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 300'%3E%3Cpath d='M100,20 C130,20 160,80 160,150 C160,220 140,270 100,280 C60,270 40,220 40,150 C40,80 70,20 100,20Z' fill='%23f5e6d3' stroke='%23764ba2' stroke-width='2'/%3E%3Cline x1='40' y1='150' x2='160' y2='150' stroke='%23ff4444' stroke-width='2' stroke-dasharray='5,5'/%3E%3Ctext x='165' y='150' fill='%23ff4444' font-size='12'%3EWidth%3C/text%3E%3Cline x1='100' y1='20' x2='100' y2='280' stroke='%234CAF50' stroke-width='2' stroke-dasharray='5,5'/%3E%3Ctext x='80' y='15' fill='%234CAF50' font-size='12'%3ELength from heel to longest toe%3C/text%3E%3C/svg%3E"
+                     alt="Foot measurement guide">
+                <div class="guide-text">✅ Place your foot flat, camera directly above. Keep heel and longest toe inside the outline.</div>
             </div>
 
             <div class="controls">
-                <button onclick="manualCapture()">📸 Capture Now</button>
-                <button onclick="window.location.href='/reset'">🔄 Reset</button>
+                <button id="captureBtn" onclick="manualCapture()">📸 Capture Now</button>
+                <button id="recaptureBtn" class="recapture-btn" onclick="resetAndRecapture()" style="display:none;">🔄 Recapture</button>
+                <button onclick="window.location.href='/reset'">🏠 Reset</button>
             </div>
             <div class="loader" id="loader"><div class="spinner"></div><p>AI measuring...</p></div>
         </div>
@@ -158,6 +152,7 @@
         const ctx = canvas.getContext('2d');
         let captureInterval = null;
         let isAutoCaptureEnabled = true;
+        let hasCaptured = false;
 
         async function startCamera() {
             try {
@@ -173,8 +168,9 @@
         }
 
         function startAutoDetection() {
+            if (captureInterval) clearInterval(captureInterval);
             captureInterval = setInterval(() => {
-                if (video.videoWidth > 0 && isAutoCaptureEnabled) analyzeFrame();
+                if (video.videoWidth > 0 && isAutoCaptureEnabled && !hasCaptured) analyzeFrame();
             }, 500);
         }
 
@@ -190,9 +186,9 @@
                 if (data.success && data.pixel_length) {
                     const ratio = data.pixel_length / (canvas.height * 0.6);
                     document.getElementById('distanceFill').style.width = Math.min(100, ratio * 100) + '%';
-                    if (ratio > 0.85 && ratio < 1.05 && isAutoCaptureEnabled) {
+                    if (ratio > 0.85 && ratio < 1.05 && isAutoCaptureEnabled && !hasCaptured) {
                         document.getElementById('borderGuide').classList.add('perfect');
-                        document.getElementById('instruction').innerHTML = '✅ Perfect! Capturing...';
+                        document.getElementById('instruction').innerHTML = '✅ Perfect! Auto-capturing...';
                         isAutoCaptureEnabled = false;
                         setTimeout(() => autoCapture(), 500);
                     }
@@ -201,9 +197,13 @@
         }
 
         function autoCapture() {
+            if (hasCaptured) return;
+            hasCaptured = true;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             const imageData = canvas.toDataURL('image/jpeg');
             document.getElementById('loader').style.display = 'block';
+            document.getElementById('captureBtn').style.display = 'none';
+            document.getElementById('recaptureBtn').style.display = 'block';
 
             fetch('/analyze', {
                 method: 'POST',
@@ -218,15 +218,27 @@
                     window.location.href = '/result';
                 } else {
                     alert('Could not measure. Please try again.');
-                    isAutoCaptureEnabled = true;
-                    document.getElementById('borderGuide').classList.remove('perfect');
+                    resetAndRecapture();
                 }
             });
         }
 
         function manualCapture() {
+            if (hasCaptured) return;
             isAutoCaptureEnabled = false;
             autoCapture();
+        }
+
+        function resetAndRecapture() {
+            hasCaptured = false;
+            isAutoCaptureEnabled = true;
+            document.getElementById('captureBtn').style.display = 'block';
+            document.getElementById('recaptureBtn').style.display = 'none';
+            document.getElementById('borderGuide').classList.remove('perfect');
+            document.getElementById('instruction').innerHTML = '📱 Place foot inside outline';
+            document.getElementById('distanceFill').style.width = '0%';
+            if (captureInterval) clearInterval(captureInterval);
+            startAutoDetection();
         }
 
         startCamera();
