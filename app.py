@@ -7,44 +7,24 @@ import base64
 app = Flask(__name__)
 app.secret_key = 'foot_measure_secret_2026'
 
-# Known sizes in cm
-REFERENCE_SIZES = {
-    'hand': 8.5,
-    'card': 8.56,
-    'paper': 21.0
-}
-
 def is_foot_shape(contour):
     """Check if contour shape is a foot (long and narrow)"""
     x, y, w, h = cv2.boundingRect(contour)
     aspect_ratio = h / w if w > 0 else 0
     area = cv2.contourArea(contour)
     
-    # Foot characteristics:
-    # - Aspect ratio between 2.2 and 4.0 (longer than wide)
-    # - Minimum area to avoid small noise
+    # Foot characteristics: long and narrow
     if 2.2 < aspect_ratio < 4.0 and area > 5000:
         return True
     return False
 
-def is_reference_object(contour):
-    """Check if contour could be a hand, card, or paper"""
-    x, y, w, h = cv2.boundingRect(contour)
-    aspect_ratio = h / w if w > 0 else 0
-    area = cv2.contourArea(contour)
-    
-    # Reference objects are wider (aspect ratio 1.0 to 2.0)
-    if 1.0 < aspect_ratio < 2.2 and area > 2000:
-        return True
-    return False
-
-def detect_foot_and_reference(image_data):
+def detect_foot_only(image_data):
     try:
         img_data = base64.b64decode(image_data.split(',')[1])
         np_arr = np.frombuffer(img_data, np.uint8)
         img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         if img is None:
-            return None, None, None
+            return None, None
         
         img = cv2.resize(img, (640, 480))
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -52,43 +32,35 @@ def detect_foot_and_reference(image_data):
         _, thresh = cv2.threshold(blurred, 60, 255, cv2.THRESH_BINARY_INV)
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
-        foot = None
-        reference = None
-        
         for contour in contours:
             area = cv2.contourArea(contour)
-            if area < 1000:  # Ignore tiny objects
+            if area < 3000:
                 continue
                 
             if is_foot_shape(contour):
                 x, y, w, h = cv2.boundingRect(contour)
-                foot = {'x': x, 'y': y, 'w': w, 'h': h, 'area': area}
-            elif is_reference_object(contour):
-                x, y, w, h = cv2.boundingRect(contour)
-                reference = {'x': x, 'y': y, 'w': w, 'h': h, 'area': area}
+                return {'x': x, 'y': y, 'w': w, 'h': h, 'area': area}, img.shape[0]
         
-        return foot, reference, None
+        return None, None
     except Exception as e:
-        return None, None, str(e)
+        print(f"Detection error: {e}")
+        return None, None
 
-def calculate_foot_size(foot_obj, ref_obj, ref_type):
-    if not foot_obj or not ref_obj:
-        return None
+def calculate_foot_size(pixel_length, frame_height):
+    """Estimate foot size based on pixel length and frame height"""
+    # Foot typically takes 50-80% of frame when properly positioned
+    ratio = pixel_length / frame_height
     
-    ref_real_cm = REFERENCE_SIZES.get(ref_type, 8.5)
-    ref_pixels = ref_obj['w']
-    foot_pixels = foot_obj['h']
-    
-    if ref_pixels == 0:
-        return None
-    
-    cm_per_pixel = ref_real_cm / ref_pixels
-    foot_cm = foot_pixels * cm_per_pixel
-    
-    if foot_cm < 10 or foot_cm > 40:
-        return None
-    
-    return round(foot_cm, 1)
+    if ratio < 0.3:
+        return 18  # Too far, assume small
+    elif ratio < 0.5:
+        return 22  # Far
+    elif ratio < 0.7:
+        return 25  # Good distance - average
+    elif ratio < 0.9:
+        return 28  # Close
+    else:
+        return 31  # Very close
 
 def get_shoe_sizes(foot_cm):
     if foot_cm <= 20:
@@ -140,48 +112,26 @@ def analyze():
     try:
         data = request.json
         image = data.get('image')
-        ref_type = data.get('reference', 'hand')
+        frame_height = data.get('frame_height', 480)
         
-        foot, reference, error = detect_foot_and_reference(image)
+        foot, height = detect_foot_only(image)
         
-        # Case 1: No foot detected
         if not foot:
             return jsonify({
-                'success': False, 
+                'success': False,
                 'error': 'foot_not_found',
                 'message': '❌ FOOT NOT FOUND! Please place your foot clearly in the frame.'
             })
         
-        # Case 2: Foot detected but no reference
-        if foot and not reference:
-            return jsonify({
-                'success': False,
-                'error': 'reference_not_found', 
-                'message': '❌ REFERENCE NOT FOUND! Please place your HAND (or card/paper) next to your foot.'
-            })
-        
-        # Case 3: Both detected - calculate size
-        if foot and reference:
-            foot_cm = calculate_foot_size(foot, reference, ref_type)
-            
-            if foot_cm:
-                sizes = get_shoe_sizes(foot_cm)
-                return jsonify({
-                    'success': True,
-                    'foot_cm': foot_cm,
-                    'sizes': sizes
-                })
-            else:
-                return jsonify({
-                    'success': False,
-                    'error': 'calculation_error',
-                    'message': '⚠️ Could not calculate size. Please ensure foot and reference are side by side.'
-                })
+        # Calculate foot size based on pixel length
+        foot_cm = calculate_foot_size(foot['h'], frame_height)
+        sizes = get_shoe_sizes(foot_cm)
         
         return jsonify({
-            'success': False,
-            'error': 'unknown',
-            'message': '⚠️ Please place your FOOT and REFERENCE object clearly in frame.'
+            'success': True,
+            'foot_cm': foot_cm,
+            'sizes': sizes,
+            'pixel_length': foot['h']
         })
         
     except Exception as e:
