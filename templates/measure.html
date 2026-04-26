@@ -105,7 +105,6 @@
             color: white;
             font-weight: bold;
         }
-        .recapture-btn { background: #ff9800; }
         .loader { display: none; text-align: center; padding: 20px; }
         .spinner {
             border: 3px solid #f3f3f3;
@@ -117,6 +116,19 @@
             margin: 0 auto;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            text-align: center;
+            padding: 12px;
+            border-radius: 25px;
+            z-index: 20;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -128,31 +140,36 @@
                 <div class="border-guide" id="borderGuide"></div>
                 <div class="foot-outline"></div>
                 <div class="distance-bar"><div class="distance-fill" id="distanceFill"></div></div>
-                <div class="instruction" id="instruction">📱 Place foot inside outline</div>
+                <div class="instruction" id="instruction">📱 Move until green line fills</div>
             </div>
 
             <div class="guide-image">
                 <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 300'%3E%3Cpath d='M100,20 C130,20 160,80 160,150 C160,220 140,270 100,280 C60,270 40,220 40,150 C40,80 70,20 100,20Z' fill='%23f5e6d3' stroke='%23764ba2' stroke-width='2'/%3E%3Cline x1='40' y1='150' x2='160' y2='150' stroke='%23ff4444' stroke-width='2' stroke-dasharray='5,5'/%3E%3Ctext x='165' y='150' fill='%23ff4444' font-size='12'%3EWidth%3C/text%3E%3Cline x1='100' y1='20' x2='100' y2='280' stroke='%234CAF50' stroke-width='2' stroke-dasharray='5,5'/%3E%3Ctext x='80' y='15' fill='%234CAF50' font-size='12'%3ELength from heel to longest toe%3C/text%3E%3C/svg%3E"
                      alt="Foot measurement guide">
-                <div class="guide-text">✅ Place your foot flat, camera directly above. Keep heel and longest toe inside the outline.</div>
+                <div class="guide-text">✅ Place foot flat, camera above. Move until top bar turns GREEN.</div>
             </div>
 
             <div class="controls">
-                <button id="captureBtn" onclick="manualCapture()">📸 Capture Now</button>
-                <button id="recaptureBtn" class="recapture-btn" onclick="resetAndRecapture()" style="display:none;">🔄 Recapture</button>
-                <button onclick="window.location.href='/reset'">🏠 Reset</button>
+                <button onclick="window.location.href='/reset'">🔄 Reset</button>
             </div>
-            <div class="loader" id="loader"><div class="spinner"></div><p>AI measuring...</p></div>
+            <div class="loader" id="loader"><div class="spinner"></div><p>Measuring...</p></div>
         </div>
     </div>
+    <div class="toast" id="toast"></div>
 
     <script>
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         let captureInterval = null;
-        let isAutoCaptureEnabled = true;
-        let hasCaptured = false;
+        let isProcessing = false;
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 2000);
+        }
 
         async function startCamera() {
             try {
@@ -163,15 +180,15 @@
                 canvas.height = video.videoHeight;
                 startAutoDetection();
             } catch (err) {
-                document.getElementById('instruction').innerText = '❌ Camera access denied';
+                showToast('❌ Camera access denied');
             }
         }
 
         function startAutoDetection() {
             if (captureInterval) clearInterval(captureInterval);
             captureInterval = setInterval(() => {
-                if (video.videoWidth > 0 && isAutoCaptureEnabled && !hasCaptured) analyzeFrame();
-            }, 500);
+                if (video.videoWidth > 0 && !isProcessing) analyzeFrame();
+            }, 300);
         }
 
         function analyzeFrame() {
@@ -183,27 +200,36 @@
             })
             .then(res => res.json())
             .then(data => {
-                if (data.success && data.pixel_length) {
+                if (data.pixel_length) {
                     const ratio = data.pixel_length / (canvas.height * 0.6);
-                    document.getElementById('distanceFill').style.width = Math.min(100, ratio * 100) + '%';
-                    if (ratio > 0.85 && ratio < 1.05 && isAutoCaptureEnabled && !hasCaptured) {
+                    const percent = Math.min(100, ratio * 100);
+                    document.getElementById('distanceFill').style.width = percent + '%';
+                    
+                    if (percent > 85 && percent < 105 && !isProcessing) {
+                        // Green zone - auto capture
                         document.getElementById('borderGuide').classList.add('perfect');
-                        document.getElementById('instruction').innerHTML = '✅ Perfect! Auto-capturing...';
-                        isAutoCaptureEnabled = false;
-                        setTimeout(() => autoCapture(), 500);
+                        document.getElementById('instruction').innerHTML = '✅ Capturing...';
+                        isProcessing = true;
+                        clearInterval(captureInterval);
+                        setTimeout(() => capturePhoto(), 200);
+                    } else {
+                        document.getElementById('borderGuide').classList.remove('perfect');
+                        document.getElementById('instruction').innerHTML = '📱 Move until green line fills';
                     }
+                } else {
+                    document.getElementById('distanceFill').style.width = '0%';
+                    document.getElementById('borderGuide').classList.remove('perfect');
                 }
+            })
+            .catch(err => {
+                console.log('Analysis error');
             });
         }
 
-        function autoCapture() {
-            if (hasCaptured) return;
-            hasCaptured = true;
+        function capturePhoto() {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             const imageData = canvas.toDataURL('image/jpeg');
             document.getElementById('loader').style.display = 'block';
-            document.getElementById('captureBtn').style.display = 'none';
-            document.getElementById('recaptureBtn').style.display = 'block';
 
             fetch('/analyze', {
                 method: 'POST',
@@ -213,29 +239,26 @@
             .then(res => res.json())
             .then(data => {
                 document.getElementById('loader').style.display = 'none';
-                if (data.success) {
+                
+                if (data.success && data.foot_cm) {
                     sessionStorage.setItem('measureResult', JSON.stringify(data));
                     window.location.href = '/result';
                 } else {
-                    alert('Could not measure. Please try again.');
+                    showToast('⚠️ Foot not detected. Please try again.');
                     resetAndRecapture();
                 }
+            })
+            .catch(err => {
+                document.getElementById('loader').style.display = 'none';
+                showToast('⚠️ Could not analyze. Please try again.');
+                resetAndRecapture();
             });
         }
 
-        function manualCapture() {
-            if (hasCaptured) return;
-            isAutoCaptureEnabled = false;
-            autoCapture();
-        }
-
         function resetAndRecapture() {
-            hasCaptured = false;
-            isAutoCaptureEnabled = true;
-            document.getElementById('captureBtn').style.display = 'block';
-            document.getElementById('recaptureBtn').style.display = 'none';
+            isProcessing = false;
             document.getElementById('borderGuide').classList.remove('perfect');
-            document.getElementById('instruction').innerHTML = '📱 Place foot inside outline';
+            document.getElementById('instruction').innerHTML = '📱 Move until green line fills';
             document.getElementById('distanceFill').style.width = '0%';
             if (captureInterval) clearInterval(captureInterval);
             startAutoDetection();
