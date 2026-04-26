@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tell us about yourself - Smart Foot Measure</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container { max-width: 500px; margin: 0 auto; }
+        .card {
+            background: white;
+            border-radius: 40px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        h2 { color: #764ba2; margin-bottom: 10px; }
+        .step { color: #999; margin-bottom: 30px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            font-size: 16px;
+        }
+        .age-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .age-btn {
+            padding: 12px;
+            background: #f5f5f5;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        .age-btn.selected {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-color: transparent;
+        }
+        .btn-next {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px;
+            font-size: 1.1em;
+            border-radius: 50px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+        }
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        input[type="hidden"] { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h2>📝 Tell us about yourself</h2>
+            <div class="step">Step 1 of 2</div>
+            
+            <div class="error-message" id="errorMessage">Please fill all required fields</div>
+            
+            <form method="POST" id="infoForm">
+                <div class="form-group">
+                    <label>Your Name</label>
+                    <input type="text" name="name" id="name" required placeholder="Enter your name">
+                </div>
+                
+                <div class="form-group">
+                    <label>Age Group</label>
+                    <div class="age-group">
+                        <div class="age-btn" data-category="infant">👶 Infant (0-1 yr)</div>
+                        <div class="age-btn" data-category="toddler">🚼 Toddler (1-4 yrs)</div>
+                        <div class="age-btn" data-category="child">🧒 Child (5-12 yrs)</div>
+                        <div class="age-btn" data-category="teen">👦 Teen (13-17 yrs)</div>
+                        <div class="age-btn" data-category="adult" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white;">👨 Adult (18+ yrs)</div>
+                    </div>
+                    <input type="hidden" name="age_category" id="ageCategory" value="adult">
+                </div>
+                
+                <div class="form-group">
+                    <label>Age (years)</label>
+                    <input type="number" name="age" id="age" required placeholder="Enter age" value="25">
+                </div>
+                
+                <div class="form-group">
+                    <label>Gender</label>
+                    <select name="gender" required>
+                        <option value="unisex">🌈 Prefer not to say</option>
+                        <option value="male">👨 Male</option>
+                        <option value="female">👩 Female</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn-next">Continue →</button>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        let selectedCategory = 'adult';
+        
+        document.querySelectorAll('.age-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.age-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                selectedCategory = btn.dataset.category;
+                document.getElementById('ageCategory').value = selectedCategory;
+                
+                const ageInput = document.getElementById('age');
+                if (selectedCategory === 'infant') {
+                    ageInput.placeholder = 'Age in months (0-12)';
+                    ageInput.value = '6';
+                } else if (selectedCategory === 'toddler') {
+                    ageInput.placeholder = 'Age in years (1-4)';
+                    ageInput.value = '2';
+                } else if (selectedCategory === 'child') {
+                    ageInput.placeholder = 'Age in years (5-12)';
+                    ageInput.value = '8';
+                } else if (selectedCategory === 'teen') {
+                    ageInput.placeholder = 'Age in years (13-17)';
+                    ageInput.value = '15';
+                } else {
+                    ageInput.placeholder = 'Age in years (18+)';
+                    ageInput.value = '25';
+                }
+            });
+        });
+        
+        document.getElementById('infoForm').addEventListener('submit', function(e) {
+            const name = document.getElementById('name').value.trim();
+            const age = document.getElementById('age').value;
+            
+            if (!name) {
+                e.preventDefault();
+                document.getElementById('errorMessage').style.display = 'block';
+                document.getElementById('errorMessage').innerText = 'Please enter your name';
+                return;
+            }
+            
+            if (!age || age <= 0) {
+                e.preventDefault();
+                document.getElementById('errorMessage').style.display = 'block';
+                document.getElementById('errorMessage').innerText = 'Please enter a valid age';
+                return;
+            }
+        });
+    </script>
+</body>
+</html>

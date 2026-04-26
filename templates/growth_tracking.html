@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Growth Tracking - Smart Foot Measure</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container { max-width: 500px; margin: 0 auto; }
+        .card {
+            background: white;
+            border-radius: 40px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        h2 { color: #764ba2; margin-bottom: 10px; }
+        .step { color: #999; margin-bottom: 30px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            font-size: 16px;
+        }
+        .option-card {
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 20px;
+            cursor: pointer;
+            text-align: center;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+        .option-card.selected {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-color: transparent;
+        }
+        .btn-next {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px;
+            font-size: 1.1em;
+            border-radius: 50px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h2>📈 Track Your Child's Growth</h2>
+            <div class="step">Step 2 of 2</div>
+            
+            <form method="POST">
+                <div class="form-group">
+                    <label>Child's Name (for tracking)</label>
+                    <input type="text" name="child_name" placeholder="Enter child's name">
+                </div>
+                
+                <label>Would you like to track growth over time?</label>
+                <div class="option-card" data-choice="yes">
+                    ✅ Yes, track my child's foot growth
+                    <div style="font-size: 12px; margin-top: 5px;">Get reminders when it's time for new shoes</div>
+                </div>
+                <div class="option-card" data-choice="no">
+                    ⏭️ No, just measure once
+                </div>
+                <input type="hidden" name="track_growth" id="trackGrowth">
+                
+                <button type="submit" class="btn-next">Start Measuring →</button>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        let selectedChoice = '';
+        
+        document.querySelectorAll('.option-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                selectedChoice = card.dataset.choice;
+                document.getElementById('trackGrowth').value = selectedChoice;
+            });
+        });
+    </script>
+</body>
+</html>

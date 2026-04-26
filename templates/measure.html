@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Smart Foot Measure - Results</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        .camera-card { background: white; border-radius: 30px; padding: 20px; margin-bottom: 20px; }
+        .camera-container { position: relative; background: #000; border-radius: 20px; overflow: hidden; aspect-ratio: 3/4; }
+        video, canvas { width: 100%; height: 100%; object-fit: cover; }
+        canvas { position: absolute; top: 0; left: 0; }
+        .border-guide { position: absolute; top: 0; left: 0; right: 0; bottom: 0; border: 4px solid #ff4444; border-radius: 20px; pointer-events: none; z-index: 10; }
+        .border-guide.perfect { border-color: #4CAF50; }
+        .foot-outline { position: absolute; bottom: 20%; left: 15%; right: 15%; height: 40%; border: 2px dashed rgba(255,255,255,0.5); border-radius: 60px 60px 30px 30px; pointer-events: none; z-index: 10; }
+        .instruction { position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.7); color: white; text-align: center; padding: 10px; border-radius: 25px; z-index: 10; }
+        .distance-bar { position: absolute; top: 20px; left: 20px; right: 20px; height: 4px; background: rgba(255,255,255,0.3); border-radius: 2px; overflow: hidden; z-index: 10; }
+        .distance-fill { height: 100%; width: 0%; background: #4CAF50; transition: width 0.1s; }
+        .controls { margin-top: 20px; display: flex; gap: 10px; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 25px; cursor: pointer; background: linear-gradient(135deg, #667eea, #764ba2); color: white; font-weight: bold; }
+        .results { display: none; margin-top: 20px; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .result-card { background: white; border-radius: 20px; padding: 20px; margin-bottom: 15px; }
+        .size-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin: 15px 0; }
+        .size-card { background: linear-gradient(135deg, #f5f7fa, #c3cfe2); border-radius: 15px; padding: 15px; text-align: center; }
+        .size-value { font-size: 28px; font-weight: bold; color: #764ba2; }
+        .info-box { background: #e8f5e9; border-radius: 15px; padding: 15px; margin: 15px 0; text-align: center; }
+        .product-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 15px 0; }
+        .product-card { background: #f8f9fa; border-radius: 12px; padding: 12px; text-align: center; border: 1px solid #e0e0e0; cursor: pointer; transition: transform 0.2s; }
+        .product-card:hover { transform: scale(1.02); background: #e8f5e9; }
+        .qr-container { text-align: center; margin: 15px 0; }
+        .qr-code { max-width: 150px; margin: 0 auto; }
+        .family-member { display: inline-block; background: #764ba2; color: white; padding: 5px 12px; border-radius: 20px; margin: 5px; cursor: pointer; }
+        .loader { display: none; text-align: center; padding: 20px; }
+        .spinner { border: 3px solid #f3f3f3; border-top: 3px solid #764ba2; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .btn-reset { background: #764ba2; margin-top: 10px; }
+        @media (max-width: 768px) { .size-grid, .product-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="camera-card">
+            <div class="camera-container">
+                <video id="video" autoplay playsinline muted></video>
+                <canvas id="canvas"></canvas>
+                <div class="border-guide" id="borderGuide"></div>
+                <div class="foot-outline"></div>
+                <div class="distance-bar"><div class="distance-fill" id="distanceFill"></div></div>
+                <div class="instruction" id="instruction">📱 Place foot inside outline</div>
+            </div>
+            <div class="controls">
+                <button onclick="manualCapture()">📸 Capture</button>
+                <button onclick="window.location.href='/reset'">🔄 Reset</button>
+            </div>
+            <div class="loader" id="loader"><div class="spinner"></div><p>AI analyzing...</p></div>
+            <div class="results" id="results">
+                <!-- Foot Map -->
+                <div class="result-card">
+                    <h3>👣 Foot Map</h3>
+                    <div id="footMap"></div>
+                </div>
+                <!-- Size Comparison -->
+                <div class="result-card">
+                    <h3>📊 Size Comparison</h3>
+                    <div id="percentileInfo" class="info-box"></div>
+                    <canvas id="percentileChart" height="150"></canvas>
+                </div>
+                <!-- Shoe Sizes -->
+                <div class="result-card">
+                    <h3>👟 Your Shoe Sizes</h3>
+                    <div class="size-grid">
+                        <div class="size-card"><div>🇺🇸 US</div><div class="size-value" id="usSize">-</div></div>
+                        <div class="size-card"><div>🇬🇧 UK</div><div class="size-value" id="ukSize">-</div></div>
+                        <div class="size-card"><div>🇪🇺 EU</div><div class="size-value" id="euSize">-</div></div>
+                    </div>
+                </div>
+                <!-- Product Recommendations -->
+                <div class="result-card">
+                    <h3>🛍️ Recommended For You</h3>
+                    <div class="product-grid" id="productGrid"></div>
+                    <div class="info-box" style="font-size:12px">💰 We earn commission from qualifying purchases</div>
+                </div>
+                <!-- QR Code -->
+                <div class="result-card">
+                    <h3>📱 QR Code for Store</h3>
+                    <div class="qr-container">
+                        <div id="qrCode" class="qr-code"></div>
+                        <p>Scan at shoe store to show your size</p>
+                    </div>
+                </div>
+                <!-- Save Profile -->
+                <div class="result-card">
+                    <h3>💾 Save to Profile</h3>
+                    <input type="text" id="profileName" placeholder="Name (e.g., Son, Daughter, Mom)" style="width:100%; padding:10px; margin:10px 0; border-radius:10px; border:1px solid #ddd;">
+                    <button onclick="saveToProfile()">💾 Save This Measurement</button>
+                    <div id="familyList" style="margin-top:15px"></div>
+                </div>
+                <!-- Download -->
+                <button class="btn-reset" onclick="downloadPDF()">📄 Download PDF Report</button>
+                <button class="btn-reset" onclick="resetApp()" style="margin-top:10px">📷 Measure Again</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let captureInterval = null;
+        let isAutoCaptureEnabled = true;
+        let currentData = null;
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+                video.srcObject = stream;
+                await video.play();
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                startAutoDetection();
+            } catch (err) {
+                document.getElementById('instruction').innerText = '❌ Camera access denied';
+            }
+        }
+
+        function startAutoDetection() {
+            captureInterval = setInterval(() => {
+                if (video.videoWidth > 0 && isAutoCaptureEnabled) analyzeFrame();
+            }, 500);
+        }
+
+        function analyzeFrame() {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            fetch('/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: canvas.toDataURL('image/jpeg'), frame_height: canvas.height })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.pixel_length) {
+                    const ratio = data.pixel_length / (canvas.height * 0.6);
+                    document.getElementById('distanceFill').style.width = Math.min(100, ratio * 100) + '%';
+                    if (ratio > 0.85 && ratio < 1.05 && isAutoCaptureEnabled) {
+                        document.getElementById('borderGuide').classList.add('perfect');
+                        document.getElementById('instruction').innerHTML = '✅ Perfect! Capturing...';
+                        isAutoCaptureEnabled = false;
+                        setTimeout(() => autoCapture(), 500);
+                    }
+                }
+            });
+        }
+
+        function autoCapture() {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            document.getElementById('loader').style.display = 'block';
+            fetch('/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: canvas.toDataURL('image/jpeg'), frame_height: canvas.height })
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('loader').style.display = 'none';
+                if (data.success) {
+                    currentData = data;
+                    displayResults(data);
+                    document.getElementById('results').style.display = 'block';
+                    if (captureInterval) clearInterval(captureInterval);
+                }
+            });
+        }
+
+        function displayResults(data) {
+            document.getElementById('usSize').innerHTML = data.sizes.US;
+            document.getElementById('ukSize').innerHTML = data.sizes.UK;
+            document.getElementById('euSize').innerHTML = data.sizes.EU;
+            
+            // Foot map
+            document.getElementById('footMap').innerHTML = `<svg width="200" height="300" viewBox="0 0 200 300"><path d="M100,20 C130,20 160,80 160,150 C160,220 140,270 100,280 C60,270 40,220 40,150 C40,80 70,20 100,20Z" fill="#f5e6d3" stroke="#764ba2" stroke-width="2"/><line x1="40" y1="150" x2="160" y2="150" stroke="#ff4444" stroke-width="2" stroke-dasharray="5,5"/><line x1="100" y1="20" x2="100" y2="280" stroke="#4CAF50" stroke-width="2" stroke-dasharray="5,5"/><text x="165" y="150" fill="#ff4444" font-size="12">Width: ${data.foot_width_cm}cm</text><text x="80" y="15" fill="#4CAF50" font-size="12">Length: ${data.foot_cm}cm</text><circle cx="70" cy="220" r="8" fill="#ff9800" opacity="0.5"/><circle cx="130" cy="220" r="8" fill="#ff9800" opacity="0.5"/></svg>`;
+            
+            // Percentile
+            document.getElementById('percentileInfo').innerHTML = `Your foot is in the <strong>${data.percentile}th percentile</strong> for your age group.<br>This means ${data.percentile}% of people your age have smaller feet.`;
+            
+            // Draw percentile chart
+            const ctx = document.getElementById('percentileChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: { labels: ['10th', '25th', '50th', '75th', '90th', 'Your Size'], datasets: [{ label: 'Foot Length (cm)', data: [22, 24, 26, 28, 30, data.foot_cm], backgroundColor: '#764ba2' }] },
+                options: { responsive: true, maintainAspectRatio: true }
+            });
+            
+            // Product recommendations
+            const category = '{{ age_category }}';
+            const products = getProductsForCategory(category);
+            document.getElementById('productGrid').innerHTML = products.map(p => `<div class="product-card" onclick="window.open('${p.link}', '_blank')"><div>${p.image} ${p.name}</div><div>${p.price}</div><div style="font-size:11px">${p.type}</div></div>`).join('');
+            
+            // QR Code
+            fetch('/qr-code').then(res => res.json()).then(qr => { document.getElementById('qrCode').innerHTML = qr.qr_image ? `<img src="data:image/png;base64,${qr.qr_image}" width="150">` : ''; });
+            
+            // Load family
+            loadFamily();
+        }
+
+        function getProductsForCategory(category) {
+            const products = { 'infant':['Robeez','Stride Rite','New Balance'], 'toddler':['Crocs','Nike','Skechers'], 'child':['Under Armour','Adidas','Puma'], 'adult':['Nike Air Max','Adidas Ultraboost','New Balance'] };
+            return products[category]?.map(p => ({ name: p, price: '$40-60', link: '#', image: '👟', type: 'Recommended' })) || [{ name: 'Popular Shoe', price: '$50', link: '#', image: '👟', type: 'Best Seller' }];
+        }
+
+        function saveToProfile() {
+            const name = document.getElementById('profileName').value || 'Family Member';
+            fetch('/save-profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name, foot_cm: currentData?.foot_cm, size_us: document.getElementById('usSize').innerHTML })
+            }).then(() => loadFamily());
+        }
+
+        function loadFamily() {
+            fetch('/get-family').then(res => res.json()).then(data => {
+                document.getElementById('familyList').innerHTML = data.map(m => `<div class="family-member">👤 ${m.name}: US ${m.size_us} (${m.date})</div>`).join('');
+            });
+        }
+
+        function downloadPDF() { window.open('/download-pdf', '_blank'); }
+        function manualCapture() { isAutoCaptureEnabled = false; autoCapture(); }
+        function resetApp() { location.reload(); }
+        startCamera();
+    </script>
+</body>
+</html>
